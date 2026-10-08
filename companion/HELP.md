@@ -87,7 +87,8 @@ The older RS232 only models (DN-500R, DN-F450R, DN-F650R) can be controlled with
 ## Configuration
 
 * **Target IP / Port**: address of the recorder (port 23 by default)
-* **Status poll interval**: how often transport state, track and time variables are refreshed (ms). Set to 0 to only refresh after commands.
+* **Transport poll interval**: how often the transport state is re-read from the recorder (default 2000 ms, minimum 500 ms). Set to 0 to only refresh after commands and when the recorder reports a change.
+* **Also poll track and time values**: off by default. When on, track number, elapsed/remaining time and remaining record time are refreshed on each poll as well.
 
 ## Presets
 

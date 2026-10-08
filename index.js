@@ -11,8 +11,13 @@ import * as CHOICES from './choices.js'
 const PULSE_MS = 25
 // keep-alive, device gets bored after 5 minutes
 const KEEPALIVE_MS = 5000
-// values that change during normal operation and are re-read periodically
-const LIVE_STATUS = ['ST', 'Tr', 'Tt', 'ET', 'RM', 'tl', 'RT', 'MM']
+// transport state is always re-read periodically (unless polling is disabled)
+const TRANSPORT_STATUS = ['ST']
+// optional: track and time values, only re-read when enabled in the config
+const TRACK_STATUS = ['Tr', 'Tt', 'ET', 'RM', 'tl', 'RT', 'MM']
+// never poll faster than this, to avoid flooding the recorder
+const MIN_POLL_MS = 500
+const DEFAULT_POLL_MS = 2000
 
 const TRANSPORT_LABELS = Object.fromEntries(CHOICES.TRANSPORT.map((t) => [t.id, t.label]))
 
@@ -122,11 +127,15 @@ class DNRInstance extends InstanceBase {
 			return
 		}
 
-		const interval = Number(this.config.poll_interval) || 0
-		if (interval > 0 && now - this.lastLivePoll >= interval) {
+		// connections created before this option existed won't have it set
+		const interval = Number(this.config.poll_interval ?? DEFAULT_POLL_MS) || 0
+		if (interval > 0 && now - this.lastLivePoll >= Math.max(interval, MIN_POLL_MS)) {
 			this.lastLivePoll = now
 			if (this.powerOn) {
-				LIVE_STATUS.forEach((id) => this.queueQuery(id))
+				TRANSPORT_STATUS.forEach((id) => this.queueQuery(id))
+				if (this.config.poll_track) {
+					TRACK_STATUS.forEach((id) => this.queueQuery(id))
+				}
 			}
 		}
 
@@ -320,12 +329,21 @@ class DNRInstance extends InstanceBase {
 			{
 				type: 'number',
 				id: 'poll_interval',
-				label: 'Status poll interval in ms (0 to disable)',
-				tooltip: 'How often transport state, track and time variables are refreshed',
-				width: 3,
+				label: 'Transport poll interval in ms (0 to disable)',
+				tooltip: 'How often the transport state is re-read from the recorder (minimum 500 ms)',
+				width: 4,
 				min: 0,
 				max: 60000,
-				default: 1000,
+				default: DEFAULT_POLL_MS,
+			},
+			{
+				type: 'checkbox',
+				id: 'poll_track',
+				label: 'Also poll track and time values',
+				tooltip:
+					'Refresh track number, elapsed/remaining time and remaining record time on each poll (sends 7 extra queries per poll)',
+				width: 4,
+				default: false,
 			},
 		]
 	}
